@@ -6,32 +6,34 @@ from pennylane import numpy as np
 from pennylane.optimize import AdamOptimizer
 import matplotlib.pyplot as plt
 
-dev = qml.device("strawberryfields.fock", wires=1, cutoff_dim=10)
+n_qubit = 4
+dev = qml.device("lightning.qubit", wires=n_qubit)
 
 def layer(v):
-    # Matrix multiplication of input layer
-    qml.Rotation(v[0], wires=0)
-    qml.Squeezing(v[1], 0.0, wires=0)
-    qml.Rotation(v[2], wires=0)
-
-    # Bias
-    qml.Displacement(v[3], 0.0, wires=0)
-
-    # Element-wise nonlinear transformation
-    qml.Kerr(v[4], wires=0)
+    for i in range(n_qubit):
+        if i != n_qubit - 1:
+            qml.CNOT(wires=[i, i+1])
+        qml.RX(v[0], wires=i)
+        qml.RY(v[1], wires=i)
+        if i != n_qubit - 1:
+            qml.CNOT(wires=[i, i+1])
+        qml.RY(v[2], wires=i)
+        qml.RX(v[3], wires=i)
 
 @qml.qnode(dev)
 def quantum_neural_net(var, x):
     # Encode input x into quantum state
-    qml.Displacement(x, 0.0, wires=0)
+    for i in range(n_qubit):
+        qml.RY(np.arcsin(x) * 2, wires=i)
+        qml.RZ(np.arccos(x * x) * 2, wires=i)
 
     # "layer" subcircuits
     for v in var:
         layer(v)
 
     #return qml.expval(qml.QuadX(0))
-    #return qml.expval(qml.PauliZ(0))
-    return qml.expval(qml.NumberOperator(0))
+    #return qml.expval(qml.NumberOperator(0))
+    return qml.expval(qml.PauliZ(0))
 
 def square_loss(labels, predictions):
     loss = 0
@@ -63,16 +65,16 @@ x_test, y_test = generate_noisy_sine(x_min, x_max, num_x)
 
 np.random.seed(0)
 
-# TODO: 4
-num_layers = 4
-var_init = 0.05 * np.random.randn(num_layers, 5, requires_grad=True)
+# TODO: 2
+num_layers = 2
+var_init = 0.05 * np.random.randn(num_layers, n_qubit * 4, requires_grad=True)
 print(var_init)
 
 opt = AdamOptimizer(0.01, beta1=0.9, beta2=0.999)
 
-# TODO: 500
+# TODO: 100
 var = var_init
-for it in range(500):
+for it in range(100):
     (var, _, _), _cost = opt.step_and_cost(cost, var, X, Y)
     #print("Iter: {:5d} | Cost: {:0.7f} ".format(it, _cost))
     print(f"Iter: {it} | Cost: {_cost}")
@@ -87,4 +89,4 @@ plt.ylabel("f(x)")
 plt.tick_params(axis="both", which="major")
 plt.tick_params(axis="both", which="minor")
 #plt.show()
-plt.savefig("sine.png")
+plt.savefig("sin.png")
