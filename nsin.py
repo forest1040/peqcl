@@ -10,15 +10,20 @@ n_qubit = 4
 dev = qml.device("lightning.qubit", wires=n_qubit)
 
 def layer(v):
+    idx = 0
     for i in range(n_qubit):
         if i != n_qubit - 1:
             qml.CNOT(wires=[i, i+1])
-        qml.RX(v[0], wires=i)
-        qml.RY(v[1], wires=i)
+        qml.RX(v[idx], wires=i)
+        idx += 1
+        qml.RY(v[idx], wires=i)
+        idx += 1
         if i != n_qubit - 1:
             qml.CNOT(wires=[i, i+1])
-        qml.RY(v[2], wires=i)
-        qml.RX(v[3], wires=i)
+        qml.RY(v[idx], wires=i)
+        idx += 1
+        qml.RX(v[idx], wires=i)
+        idx += 1
 
 @qml.qnode(dev)
 def quantum_neural_net(var, x):
